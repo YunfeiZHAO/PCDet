@@ -42,7 +42,10 @@ class BaseKittiDataset(DatasetTemplate):
 
     def get_label(self, idx):
         label_file = os.path.join(self.root_split_path, 'label_2', '%s.txt' % idx)
-        assert os.path.exists(label_file)
+        try:
+            assert os.path.exists(label_file)
+        except:
+            print(idx,"failed ----------------------------------------------------------------------------")
         return object3d_utils.get_objects_from_label(label_file)
 
     def get_calib(self, idx):
@@ -105,47 +108,93 @@ class BaseKittiDataset(DatasetTemplate):
 
             if has_label:
                 obj_list = self.get_label(sample_idx)
-                annotations = {}
-                annotations['name'] = np.array([obj.cls_type for obj in obj_list])
-                annotations['truncated'] = np.array([obj.truncation for obj in obj_list])
-                annotations['occluded'] = np.array([obj.occlusion for obj in obj_list])
-                annotations['alpha'] = np.array([obj.alpha for obj in obj_list])
-                annotations['bbox'] = np.concatenate([obj.box2d.reshape(1, 4) for obj in obj_list], axis=0)
-                annotations['dimensions'] = np.array([[obj.l, obj.h, obj.w] for obj in obj_list])  # lhw(camera) format
-                annotations['location'] = np.concatenate([obj.loc.reshape(1, 3) for obj in obj_list], axis=0)
-                annotations['rotation_y'] = np.array([obj.ry for obj in obj_list])
-                annotations['score'] = np.array([obj.score for obj in obj_list])
-                annotations['difficulty'] = np.array([obj.level for obj in obj_list], np.int32)
+                if obj_list:
+                    annotations = {}
+                    annotations['name'] = np.array([obj.cls_type for obj in obj_list])
+                    annotations['truncated'] = np.array([obj.truncation for obj in obj_list])
+                    annotations['occluded'] = np.array([obj.occlusion for obj in obj_list])
+                    annotations['alpha'] = np.array([obj.alpha for obj in obj_list])
+                    try:
+                        np.concatenate([obj.box2d.reshape(1, 4) for obj in obj_list], axis=0)
+                    except:
+                        print(sample_idx," a un problème --------------------------------------------------------------------------------")
+                    annotations['bbox'] = np.concatenate([obj.box2d.reshape(1, 4) for obj in obj_list], axis=0)
+                    annotations['dimensions'] = np.array([[obj.l, obj.h, obj.w] for obj in obj_list])  # lhw(camera) format
+                    annotations['location'] = np.concatenate([obj.loc.reshape(1, 3) for obj in obj_list], axis=0)
+                    annotations['rotation_y'] = np.array([obj.ry for obj in obj_list])
+                    annotations['score'] = np.array([obj.score for obj in obj_list])
+                    annotations['difficulty'] = np.array([obj.level for obj in obj_list], np.int32)
 
-                num_objects = len([obj.cls_type for obj in obj_list if obj.cls_type != 'DontCare'])
-                num_gt = len(annotations['name'])
-                index = list(range(num_objects)) + [-1] * (num_gt - num_objects)
-                annotations['index'] = np.array(index, dtype=np.int32)
+                    num_objects = len([obj.cls_type for obj in obj_list if obj.cls_type != 'DontCare'])
+                    num_gt = len(annotations['name'])
+                    index = list(range(num_objects)) + [-1] * (num_gt - num_objects)
+                    annotations['index'] = np.array(index, dtype=np.int32)
 
-                loc = annotations['location'][:num_objects]
-                dims = annotations['dimensions'][:num_objects]
-                rots = annotations['rotation_y'][:num_objects]
-                loc_lidar = calib.rect_to_lidar(loc)
-                l, h, w = dims[:, 0:1], dims[:, 1:2], dims[:, 2:3]
-                gt_boxes_lidar = np.concatenate([loc_lidar, w, l, h, rots[..., np.newaxis]], axis=1)
-                annotations['gt_boxes_lidar'] = gt_boxes_lidar
+                    loc = annotations['location'][:num_objects]
+                    dims = annotations['dimensions'][:num_objects]
+                    rots = annotations['rotation_y'][:num_objects]
+                    loc_lidar = calib.rect_to_lidar(loc)
+                    l, h, w = dims[:, 0:1], dims[:, 1:2], dims[:, 2:3]
+                    gt_boxes_lidar = np.concatenate([loc_lidar, w, l, h, rots[..., np.newaxis]], axis=1)
+                    annotations['gt_boxes_lidar'] = gt_boxes_lidar
 
-                info['annos'] = annotations
+                    info['annos'] = annotations
 
-                if count_inside_pts:
-                    points = self.get_lidar(sample_idx)
-                    calib = self.get_calib(sample_idx)
-                    pts_rect = calib.lidar_to_rect(points[:, 0:3])
+                    if count_inside_pts:
+                        points = self.get_lidar(sample_idx)
+                        calib = self.get_calib(sample_idx)
+                        pts_rect = calib.lidar_to_rect(points[:, 0:3])
 
-                    fov_flag = self.get_fov_flag(pts_rect, info['image']['image_shape'], calib)
-                    pts_fov = points[fov_flag]
-                    corners_lidar = box_utils.boxes3d_to_corners3d_lidar(gt_boxes_lidar)
-                    num_points_in_gt = -np.ones(num_gt, dtype=np.int32)
+                        fov_flag = self.get_fov_flag(pts_rect, info['image']['image_shape'], calib)
+                        pts_fov = points[fov_flag]
+                        corners_lidar = box_utils.boxes3d_to_corners3d_lidar(gt_boxes_lidar)
+                        num_points_in_gt = -np.ones(num_gt, dtype=np.int32)
 
-                    for k in range(num_objects):
-                        flag = box_utils.in_hull(pts_fov[:, 0:3], corners_lidar[k])
-                        num_points_in_gt[k] = flag.sum()
-                    annotations['num_points_in_gt'] = num_points_in_gt
+                        for k in range(num_objects):
+                            flag = box_utils.in_hull(pts_fov[:, 0:3], corners_lidar[k])
+                            num_points_in_gt[k] = flag.sum()
+                        annotations['num_points_in_gt'] = num_points_in_gt
+                else:
+                    print("no obj ----------- ",sample_idx,file=sys.stderr)
+                    annotations = {}
+                    annotations['name'] = []
+                    annotations['truncated'] = []
+                    annotations['occluded'] = []
+                    annotations['alpha'] = []
+                    annotations['bbox'] = []
+                    annotations['dimensions'] = []
+                    annotations['location'] = []
+                    annotations['rotation_y'] = []
+                    annotations['score'] = []
+                    annotations['difficulty'] = []
+                    num_objects = 0
+                    num_gt = 0
+                    index = list(range(num_objects)) + [-1] * (num_gt - num_objects)
+                    annotations['index'] = np.array(index, dtype=np.int32)
+                    loc = annotations['location'][:num_objects]
+                    dims = annotations['dimensions'][:num_objects]
+                    rots = annotations['rotation_y'][:num_objects]
+                    loc_lidar = calib.rect_to_lidar(loc)
+                    l, h, w = [],[],[]
+                    gt_boxes_lidar = []
+                    annotations['gt_boxes_lidar'] = gt_boxes_lidar
+
+                    info['annos'] = annotations
+
+                    if count_inside_pts:
+                        points = self.get_lidar(sample_idx)
+                        calib = self.get_calib(sample_idx)
+                        pts_rect = calib.lidar_to_rect(points[:, 0:3])
+
+                        fov_flag = self.get_fov_flag(pts_rect, info['image']['image_shape'], calib)
+                        pts_fov = points[fov_flag]
+                        corners_lidar = []
+                        num_points_in_gt = -np.ones(num_gt, dtype=np.int32)
+
+                        for k in range(num_objects):
+                            flag = box_utils.in_hull(pts_fov[:, 0:3], corners_lidar[k])
+                            num_points_in_gt[k] = flag.sum()
+                        annotations['num_points_in_gt'] = num_points_in_gt
 
             return info
 
@@ -170,17 +219,22 @@ class BaseKittiDataset(DatasetTemplate):
             info = infos[k]
             sample_idx = info['point_cloud']['lidar_idx']
             points = self.get_lidar(sample_idx)
-            annos = info['annos']
-            names = annos['name']
-            difficulty = annos['difficulty']
-            bbox = annos['bbox']
-            gt_boxes = annos['gt_boxes_lidar']
+            try:
+                annos = info['annos']
+            except:
+                annos = {}
+            if annos:
+                names = annos['name']
+                difficulty = annos['difficulty']
+                bbox = annos['bbox']
+                gt_boxes = annos['gt_boxes_lidar']
 
-            num_obj = gt_boxes.shape[0]
-            point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
-                torch.from_numpy(points[:, 0:3]), torch.from_numpy(gt_boxes)
-            ).numpy()  # (nboxes, npoints)
-
+                num_obj = gt_boxes.shape[0]
+                point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
+                    torch.from_numpy(points[:, 0:3]), torch.from_numpy(gt_boxes)
+                ).numpy()  # (nboxes, npoints)
+            else:
+                num_obj = 0
             for i in range(num_obj):
                 filename = '%s_%s_%d.bin' % (sample_idx, names[i], i)
                 filepath = database_save_path / filename
@@ -440,6 +494,11 @@ class KittiDataset(BaseKittiDataset):
 
         if 'annos' in info:
             annos = info['annos']
+            print("--------------------------")
+            print(annos['name'])
+            print("Nombre de BBOX:",len(annos["bbox"]))
+            print("Nombre de gt_lidar:", len(annos["gt_boxes_lidar"]))
+            print("--------------------------")
             annos = common_utils.drop_info_with_name(annos, name='DontCare')
             loc, dims, rots = annos['location'], annos['dimensions'], annos['rotation_y']
             gt_names = annos['name']
@@ -448,6 +507,11 @@ class KittiDataset(BaseKittiDataset):
             if 'gt_boxes_lidar' in annos:
                 gt_boxes_lidar = annos['gt_boxes_lidar']
             else:
+                print("---------------------------------------------")
+                print("No gt_boxes_lidar from annos",file=sys.stderr)
+                print("gt_boxes:",len(gt_boxes),file=sys.stderr)
+                print(gt_names)
+                print("---------------------------------------------")
                 gt_boxes_lidar = box_utils.boxes3d_camera_to_lidar(gt_boxes, calib)
 
             input_dict.update({
@@ -516,5 +580,3 @@ if __name__ == '__main__':
         import pdb
         pdb.set_trace()
         ans = A[1]
-
-
