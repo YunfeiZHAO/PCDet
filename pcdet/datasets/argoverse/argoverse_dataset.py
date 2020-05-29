@@ -31,7 +31,7 @@ class BaseKittiDataset(DatasetTemplate):
         self.__init__(self.root_path, split)
 
     def get_lidar(self, idx):
-        lidar_file = os.path.join(self.root_split_path, 'velodyne', '%s.bin' % idx)
+        lidar_file = os.path.join(self.root_split_path, 'lidar', '%s.ply' % idx)
         assert os.path.exists(lidar_file)
         return np.fromfile(lidar_file, dtype=np.float32).reshape(-1, 4)
 
