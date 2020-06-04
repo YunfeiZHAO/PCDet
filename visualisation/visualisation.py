@@ -29,7 +29,7 @@ class Visualisation:
 
     #, calib, show3d = True, depth = None
 
-    def show_image_with_boxes(self, img):
+    def show_image_with_2Dboxes(self, img):
         """ Show image with 2D bounding boxes """
         img1 = np.copy(img)  # for 2d bbox
         img2 = np.copy(img)  # for 3d bbox
@@ -43,6 +43,13 @@ class Visualisation:
                 (0, 255, 0),
                 2,
             )
+        cv2.imshow("2dbox", img1)
+
+
+    def show_image_with_3Dboxes(self, img):
+        """ Show image with 3D bounding boxes """
+        generate_corners3d
+
             # box3d_pts_2d, box3d_pts_3d = utils.compute_box_3d(obj, calib.P)
             # img2 = utils.draw_projected_box3d(img2, box3d_pts_2d)
 
@@ -63,7 +70,7 @@ class Visualisation:
         #     cv2.imshow("depth", depth)
 
 def main():
-    V = Visualisation('/home/yunfei/Desktop/PCDet/output/pointpillar/default/eval/epoch_no_number/val/default/final_result/data', '/home/yunfei/Desktop/PCDet/data/kitti/training/image_2', 1)
+    V = Visualisation('/home/yunfei/Desktop/PCDet/data/kitti/training/label_2', '/home/yunfei/Desktop/PCDet/data/kitti/training/image_2', 1)
     V.show_image_with_boxes(V.img)
     cv2.waitKey()
 if __name__ == '__main__':

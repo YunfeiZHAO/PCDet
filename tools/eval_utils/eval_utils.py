@@ -42,7 +42,7 @@ def eval_one_epoch(model, dataloader, epoch_id, logger, save_to_file=False, resu
     progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
     start_time = time.time()
     for i, data in enumerate(dataloader):
-        print(data)
+        #print(data)
         input_dict = example_convert_to_torch(data)
         pred_dicts, ret_dict = model(input_dict)
         disp_dict = {}
